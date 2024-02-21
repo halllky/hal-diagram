@@ -1,14 +1,13 @@
-# Instrallation
-```
-npm ci
-```
+# Get Started
+- Clone this repository
+- Run `npm ci`
 
 # Debug
 ```
 npm run tauri dev
 ```
 
-ファイル指定でデバッグする場合
+With data file launch
 ```
 npm run tauri dev -- -- -- ../TESTFILES/my-test-data.json
 ```
