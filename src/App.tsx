@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState, useRef } from 'react'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import * as Icon from '@ant-design/icons'
 import { Components, Messaging, ReactHookUtil, StorageUtil } from './util'
-import { useDataSourceHandler, UnknownDataSource, IDataSourceHandler } from './DataSource'
-import { useCytoscape } from './Cy'
-import Navigator from './Cy.Navigator'
+import { useDataSourceHandler, UnknownDataSource, IDataSourceHandler, DataSet } from './DataSource'
+import { ViewState } from './Cy'
 import { useTauriApi } from './TauriApi'
+import GraphView, { GraphViewRef } from './GraphView'
 
 function App() {
   const [, dispatchMessage] = Messaging.useMsgContext()
@@ -14,22 +14,10 @@ function App() {
   const [dataSource, setDataSource] = useState<UnknownDataSource>()
   const [dsHandler, setDsHandler] = useState<IDataSourceHandler>()
   const { defineHandler } = useDataSourceHandler()
+  const graphViewRef = useRef<GraphViewRef>(null)
 
-  const {
-    cy,
-    applyToCytoscape,
-    containerRef,
-    reset,
-    expandSelections,
-    collapseSelections,
-    toggleExpandCollapse,
-    LayoutSelector,
-    nodesLocked,
-    toggleNodesLocked,
-    hasNoElements,
-    collectViewState,
-    ...otherActions
-  } = useCytoscape()
+  const [initialDataSetForGraph, setInitialDataSetForGraph] = useState<DataSet>()
+  const [initialViewStateForGraph, setInitialViewStateForGraph] = useState<ViewState>()
 
   // -----------------------------------------------------
   // 読込
@@ -42,13 +30,14 @@ function App() {
       const viewState = await loadViewStateFile()
       setDataSource(source)
       setDsHandler(handler)
-      applyToCytoscape(dataSet, viewState)
+      setInitialDataSetForGraph(dataSet)
+      setInitialViewStateForGraph(viewState)
     } catch (error) {
       dispatchMessage(msg => msg.error(error))
     } finally {
       setNowLoading(false)
     }
-  }, [applyToCytoscape, defineHandler, loadViewStateFile])
+  }, [defineHandler, loadViewStateFile, dispatchMessage])
   const reloadByCurrentData = useCallback(async () => {
     if (dataSource) await reload(dataSource)
   }, [dataSource, reload])
@@ -65,13 +54,13 @@ function App() {
   const saveAll = useCallback(async () => {
     try {
       if (dataSource) await saveTargetFile(dataSource)
-      const viewState = collectViewState()
-      await saveViewStateFile(viewState)
+      const viewState = graphViewRef.current?.collectViewState()
+      if (viewState) await saveViewStateFile(viewState)
       dispatchMessage(msg => msg.info('保存しました。'))
     } catch (error) {
       dispatchMessage(msg => msg.error(error))
     }
-  }, [dataSource, collectViewState])
+  }, [dataSource, saveTargetFile, saveViewStateFile, dispatchMessage])
 
   // -----------------------------------------------------
   // 表示/非表示
@@ -81,23 +70,23 @@ function App() {
   // -----------------------------------------------------
   // キー操作
   const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = useCallback(e => {
-    // console.log(e.key)
     if (e.ctrlKey && e.key === 's') {
       saveAll()
       e.preventDefault()
     } else if (e.ctrlKey && e.key === 'a') {
-      otherActions.selectAll()
+      graphViewRef.current?.selectAll()
       e.preventDefault()
     } else if (e.key === 'Space' || e.key === ' ') {
-      toggleExpandCollapse()
+      graphViewRef.current?.toggleExpandCollapse()
       e.preventDefault()
     }
-  }, [reloadByCurrentData, dataSource, saveAll, toggleExpandCollapse, otherActions])
+  }, [saveAll])
 
   // -----------------------------------------------------
   // 選択中の要素のプロパティ
   const [detailJson, setDetailJson] = useState('')
   const updateDetailJson = useCallback(() => {
+    const cy = graphViewRef.current?.getCy()
     if (!cy) {
       setDetailJson('')
       return
@@ -122,7 +111,10 @@ function App() {
       str.push(`...ほか ${selected.length - 1} 件の選択`)
     }
     setDetailJson(str.join('\n'))
-  }, [cy])
+  }, [])
+
+  const LayoutSelectorFromRef = graphViewRef.current?.LayoutSelector;
+  const nodesLockedFromRef = graphViewRef.current?.getNodesLocked();
 
   return (
     <PanelGroup direction="horizontal" className="w-full h-full bg-zinc-200">
@@ -158,16 +150,16 @@ function App() {
 
           <div className="flex-1"></div>
 
-          <LayoutSelector />
-          <Components.Button outlined onClick={reset}>自動レイアウト</Components.Button>
+          {LayoutSelectorFromRef && <LayoutSelectorFromRef />}
+          <Components.Button outlined onClick={() => graphViewRef.current?.reset()}>自動レイアウト</Components.Button>
 
           <label className="text-nowrap flex gap-1">
-            <input type="checkbox" checked={nodesLocked} onChange={toggleNodesLocked} />
+            <input type="checkbox" checked={nodesLockedFromRef ?? false} onChange={() => graphViewRef.current?.toggleNodesLocked()} />
             ノード位置固定
           </label>
 
-          <Components.Button outlined onClick={expandSelections}>展開</Components.Button>
-          <Components.Button outlined onClick={collapseSelections}>折りたたむ</Components.Button>
+          <Components.Button outlined onClick={() => graphViewRef.current?.expandSelections()}>展開</Components.Button>
+          <Components.Button outlined onClick={() => graphViewRef.current?.collapseSelections()}>折りたたむ</Components.Button>
 
           <Components.Button onClick={saveAll}>保存(Ctrl+S)</Components.Button>
         </div>
@@ -191,15 +183,13 @@ function App() {
 
           {/* グラフ */}
           <Panel className="bg-white relative">
-            <div ref={containerRef}
-              className="overflow-hidden [&>div>canvas]:left-0 h-full w-full outline-none"
-              tabIndex={0}
-              onKeyDown={handleKeyDown}>
-            </div>
-            <Navigator.Component hasNoElements={hasNoElements} className="absolute w-[20vw] h-[20vh] right-2 bottom-2 z-[200]" />
-            {nowLoading && (
-              <Components.NowLoading className="w-10 h-10 absolute left-0 right-0 top-0 bottom-0 m-auto" />
-            )}
+            <GraphView
+              ref={graphViewRef}
+              handleKeyDown={handleKeyDown}
+              nowLoading={nowLoading}
+              initialDataSet={initialDataSetForGraph}
+              initialViewState={initialViewStateForGraph}
+            />
           </Panel>
 
           <Messaging.InlineMessageList />
