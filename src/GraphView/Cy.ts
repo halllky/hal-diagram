@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import cytoscape from 'cytoscape'
 import * as UUID from 'uuid'
 import Navigator from './Cy.Navigator'
@@ -6,7 +6,6 @@ import AutoLayout from './Cy.AutoLayout'
 import ExpandCollapseFunctions from './Cy.ExpandCollapse'
 import { ViewState, useViewState } from './Cy.SaveLoad'
 import * as DS from './DataSource'
-import { ReactHookUtil } from './util'
 import { USER_SETTING } from './UserSetting'
 
 AutoLayout.configure(cytoscape)
@@ -79,10 +78,10 @@ export const useCytoscape = (): CytoscapeHookType => {
   }, [cy])
 
   // ノード位置固定
-  const [nodesLocked, changeNodesLocked] = ReactHookUtil.useToggle()
+  const [nodesLocked, changeNodesLocked] = React.useState(false)
   const toggleNodesLocked = useCallback(() => {
-    if (!cy) { changeNodesLocked(x => x.setValue(false)); return }
-    changeNodesLocked(x => x.toggle())
+    if (!cy) { changeNodesLocked(false); return }
+    changeNodesLocked(checked => !checked)
     cy.autolock(!nodesLocked)
   }, [cy, nodesLocked])
 

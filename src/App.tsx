@@ -2,10 +2,11 @@ import React, { useCallback, useEffect, useState, useRef } from 'react'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import * as Icon from '@ant-design/icons'
 import { Components, Messaging, ReactHookUtil, StorageUtil } from './util'
-import { useDataSourceHandler, UnknownDataSource, IDataSourceHandler, DataSet } from './DataSource'
-import { ViewState } from './Cy'
+import { UnknownDataSource, IDataSourceHandler, DataSet } from './GraphView/DataSource'
+import { ViewState } from './GraphView/Cy'
 import { useTauriApi } from './TauriApi'
 import GraphView, { GraphViewRef } from './GraphView'
+import { useDataSourceHandler } from './useDataSourceHandler'
 
 function App() {
   const [, dispatchMessage] = Messaging.useMsgContext()

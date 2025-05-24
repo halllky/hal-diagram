@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { IDataSourceHandler, ReloadFunc, DataSet } from './DataSource'
+import { IDataSourceHandler, ReloadFunc, DataSet } from './GraphView/DataSource'
 
 export type FileDataSource = DataSet & {
   type?: 'file'

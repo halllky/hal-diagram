@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { invoke, window as windowApi } from '@tauri-apps/api'
 import { UnknownDataSource } from './DataSource'
-import { ViewState, getEmptyViewState } from './Cy.SaveLoad'
+import { ViewState, getEmptyViewState } from './GraphView/Cy.SaveLoad'
 
 export const useTauriApi = () => {
 
